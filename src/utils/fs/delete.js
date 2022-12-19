@@ -3,11 +3,14 @@ import path from 'path';
 import { AppError } from '../index.js';
 import { ERROR } from '../constants.js';
 
-export const remove = async (dir, file) => {
+export const remove = async (dir, filePath) => {
   try {
-    const filePath = path.resolve(dir, file);
-    await fsPromises.rm(filePath);
-  } catch {
-    throw new AppError(ERROR.FAILED);
+    const file = path.isAbsolute(filePath) ? path.normalize(filePath) : path.resolve(dir, filePath);
+    const stats = await fsPromises.stat(file);
+    if (!stats.isFile()) throw { type: 'invalidInput' };
+    await fsPromises.rm(file);
+  } catch (err) {
+    const message = err.type === 'invalidInput' ? ERROR.INVALID : ERROR.FAILED;
+    throw new AppError(message);
   }
 };

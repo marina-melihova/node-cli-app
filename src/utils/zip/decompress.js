@@ -9,17 +9,20 @@ export const decompress = async (dir, options) => {
   try {
     const [sourcePath, destPath] = options;
     const source = path.isAbsolute(sourcePath) ? path.normalize(sourcePath) : path.resolve(dir, sourcePath);
-    const destination = path.isAbsolute(destPath) ? path.normalize(destPath) : path.resolve(dir, destPath);
+    const sourceStats = await fsPromises.stat(source);
+    if (!sourceStats.isFile()) throw { type: 'invalidInput' };
+    let destination = path.isAbsolute(destPath) ? path.normalize(destPath) : path.resolve(dir, destPath);
     const fdDest = await fsPromises.open(destination, 'w');
     const fdSource = await fsPromises.open(source);
     const writableStream = fdDest.createWriteStream();
     const readableStream = fdSource.createReadStream();
-    const gzip = zlib.createBrotliDecompress();
+    const brotli = zlib.createBrotliDecompress();
     console.log('Decompression has already started, please wait...');
-    readableStream.pipe(gzip).pipe(writableStream);
+    readableStream.pipe(brotli).pipe(writableStream);
     await once(writableStream, 'finish');
     console.log('Archive was decompressed');
-  } catch {
-    throw new AppError(ERROR.FAILED);
+  } catch (err) {
+    const message = err.type === 'invalidInput' ? ERROR.INVALID : ERROR.FAILED;
+    throw new AppError(message);
   }
 };
